@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title >AI CHAT - SIMPLE VERSION </title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: rgb(13, 15, 19);
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background-color: rgb(20, 22, 27);
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        #title {
+            color: white;
+            font-size: 24px;
+        }
+
+
+        /* Chat messages area */
+        #answers {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            color: white;
+        }
+
+        #answers p {
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 70%;
+            word-wrap: break-word;
+            color: white;
+        }
+
+        #answers p[style*="right"] {
+            background-color: #1e3a5f;
+            margin-left: auto;
+        }
+
+        #answers p[style*="left"] {
+            background-color: #2a2d32;
+            margin-right: auto;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            background-color: rgb(30, 33, 39);
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #1e3a5f;
+        }
+
+        /* Info message */
+        .info-message {
+            background-color: #1e2a3a;
+            border-left: 3px solid #2196F3;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        /* Input form */
+        #chatForm {
+            padding: 20px;
+            background-color: rgb(20, 22, 27);
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #333;
+        }
+
+      
+
+        button {
+            padding: 12px 20px;
+            background-color: #1e3a5f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #2a4d7a;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #display-char-tt{
+            color: white;
+        }
+
+        #char-index{
+            color: white;
+        }
+       
+    </style>
+</head>
+<body>
+    <header>
+        <br id = "title">Welcome to AI CHAT - SIMPLE VERSION</br>
+        <div >
+            <h1 id = "char-index"> Talking to: 
+                <span class="current-char" id="display-char-tt"> Alice </span>
+            </h1>
+        </div>
+    </header>
+
+    <div id="answers">
+
+    </div>
+
+    <form id="chatForm" onsubmit="sendMessageUP(event)">
+        <input type="text" name="message" id="chatMessage" placeholder="Scrivi il tuo quesito...">
+        <button type="submit" id="sendBt">Invia</button>
+        <button type="button" id="changeBt" onclick="swapCharacter()">Change</button>
+    </form>
+
+    <script>
+
+        const characters = ['giove', 'zeus', 'ade'];
+        let currentCharIndex = 0;
+        const characterClasses = ['char-giove', 'char-zeus', 'char-ade'];
+        const characterChats = {
+            giove: [],
+            zeus: [],
+            ade: []
+        };
+        function getCurrentCharacterClass() {
+            return characterClasses[currentCharIndex];
+        }
+
+        function getCurrentCharacter() {
+            return characters[currentCharIndex];
+        }
+
+
+        function swapCharacter() {
+            
+            currentCharIndex = (currentCharIndex + 1) % characters.length;
+            updateCharacterDisplay();
+            loadCharacterChat();
+            
+            const input = document.getElementById('chatMessage');
+            input.focus();
+        }
+
+        function loadCharacterChat() {
+            const respondsDiv = document.getElementById('answers');
+            const currentChar = getCurrentCharacter();
+
+            respondsDiv.innerHTML = '';
+
+            const messages = characterChats[currentChar];
+            messages.forEach(msg => {
+                showMessagesUP(msg.content, msg.char);
+            });
+
+            scrollToBottom();
+        }
+
+        function updateCharacterDisplay() {
+            const displayElement = document.getElementById('display-char-tt');
+            const swapBtn = document.getElementById('changeBt');
+            const currentChar = getCurrentCharacter();
+            
+            displayElement.textContent = currentChar;
+            displayElement.className = `char-name ${getCurrentCharacterClass()}`;
+            
+            swapBtn.innerHTML = ` Swap (${currentChar})`;
+        }
+
+
+        async function sendMessage(event){
+            event.preventDefault();
+            const input = document.getElementById("chatMessage");
+            const sendBtn = document.getElementById("sendBt");
+            const swapBtn = document.getElementById("changeBt");
+            const respondsDiv = document.getElementById("answers");
+            const message = input.value.trim();
+
+            if(message === ""){
+                return;
+            }
+
+            input.disabled = true;
+            sendBtn.disabled = true;
+            swapBtn.disabled = true;
+            sendBtn.textContent = 'Loading...';
+            // show loading spinner 
+
+            showMessages(message, false); // Show user message
+            characterChats[currentChar].push({ char: 'User', content: message });
+
+            try {
+                const response = await fetch("/question", {
+                    method: "POST",
+                    body: JSON.stringify({ question: message }),
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                });
+                
+                const data = await response.json();
+                const answer = data.answer;
+                const isAI = data.ai === 'yes';
+                showMessages(answer, isAI);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                swapBtn.disabled = false;
+                sendBtn.textContent = 'Invia';
+                input.value = "";
+                input.focus();
+            }
+
+
+        }
+
+        async function sendMessageUP(event){
+            event.preventDefault();
+            const input = document.getElementById("chatMessage");
+            const sendBtn = document.getElementById("sendBt");
+            const swapBtn = document.getElementById("changeBt");
+            const respondsDiv = document.getElementById("answers");
+            const message = input.value.trim();
+
+            if(message === ""){
+                return;
+            }
+
+            const currentChar = getCurrentCharacter();
+
+            input.disabled = true;
+            sendBtn.disabled = true;
+            swapBtn.disabled = true;
+            sendBtn.textContent = 'Loading...';
+            // show loading spinner 
+
+            showMessages(message, false); // Show user message
+
+            try {
+                const response = await fetch(`/${currentChar}`, {
+                    method: "POST",
+                    body: JSON.stringify({ question: message }),
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                });
+                
+                const data = await response.json();
+                const answer = data.answer;
+                characterChats[currentChar].push({ char: currentChar, content: answer });
+                showMessages(answer, currentChar);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                swapBtn.disabled = false;
+                sendBtn.textContent = 'Invia';
+                input.value = "";
+                input.focus();
+            }
+
+
+        }
+
+
+
+        function showMessages(message, isAI){
+            const respondsDiv = document.getElementById("answers");
+            const msgElement = document.createElement('p');
+            if (isAI){
+                msgElement.textContent = `AI: ${message}`;
+                msgElement.style.textAlign = 'left';
+            }else{
+                msgElement.textContent = `${message} : User`;
+                msgElement.style.textAlign = 'right';
+            }
+            respondsDiv.appendChild(msgElement);
+        }
+
+        function showMessagesUP(message, who){
+            const respondsDiv = document.getElementById("answers");
+            const msgElement = document.createElement('p');
+            if (who != 'User'){
+                msgElement.textContent = `${who}: ${message}`;
+                msgElement.style.textAlign = 'left';
+            }else{
+                msgElement.textContent = `${message} : User`;
+                msgElement.style.textAlign = 'right';
+            }
+            respondsDiv.appendChild(msgElement);
+        }
+
+
+        function scrollToBottom() {
+            const respondsDiv = document.getElementById("answers");
+            respondsDiv.scrollTop = respondsDiv.scrollHeight;
+        }
+
+
+        updateCharacterDisplay();
+        scrollToBottom();
+
+    </script>
+
+
+
+
+</body>
+</html>
