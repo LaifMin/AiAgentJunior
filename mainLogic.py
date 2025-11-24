@@ -65,6 +65,11 @@ contextDictionary = {
    'Zeus': context2,
    'Ade': context3
 }
+private_contexts = {
+   'Giove': [('system', config['prompts']['giove']), ('system', '')],
+   'Zeus': [('system', config['prompts']['zeus']), ('system', '')],
+   'Ade': [('system', config['prompts']['ade']), ('system', '')]
+}
 
 
 def get_contexts(character_name):
@@ -120,7 +125,7 @@ def generate_answer(user_prompt):
    context.append(('ai', answer))
    return answer
 
-def generate_answerMC(user_prompt, character_name):
+def generate_answerMC(user_prompt, character_name, is_private=False):
    """
    if not is_prompt_safe(user_prompt):
       logging.warning("Unsafe message detected from user.")
@@ -130,23 +135,22 @@ def generate_answerMC(user_prompt, character_name):
    
    """
    logging.info("Generating answer for user prompt:" + user_prompt)
-   context = contextDictionary[character_name]
-   context.append(('human', user_prompt))
+   target_context = private_contexts[character_name] if is_private else contextDictionary[character_name]
+   target_context.append(('human', user_prompt))
 
-   #Retrieve relevant documents from RAG
    relevantDocs = retriever.invoke(user_prompt)
    doc_text = "\n".join([d.page_content for d in relevantDocs])
    doc_text = "Usa questo testo per rispondere alla domanda:\n" + doc_text + "\nSe non conosci la risposta, dì che non lo sai.\n"
    
-   
-   other_contexts = get_contexts(character_name)
-   other_contexts_text = format_contexts(other_contexts)
-   doc_text += other_contexts_text
+   if not is_private:
+      other_contexts = get_contexts(character_name)
+      other_contexts_text = format_contexts(other_contexts)
+      doc_text += other_contexts_text
     
-   context[1] = ('system', doc_text)
+   target_context[1] = ('system', doc_text)
 
-   answer = agentModel.invoke(context).content
-   context.append(('ai', answer))
+   answer = agentModel.invoke(target_context).content
+   target_context.append(('ai', answer))
    return answer
 
 
@@ -169,7 +173,8 @@ def question():
 def giove():
    userPrompt = request.get_json()
    answer = userPrompt.get('question', 'No question')
-   responseText = generate_answerMC(answer, 'Giove')
+   is_private = userPrompt.get('private', False)
+   responseText = generate_answerMC(answer, 'Giove', is_private)
    return jsonify({'answer': responseText,
                    'char': 'giove'
                    })
@@ -179,7 +184,8 @@ def giove():
 def zeus():
    userPrompt = request.get_json()
    answer = userPrompt.get('question', 'No question')
-   responseText = generate_answerMC(answer, 'Zeus')
+   is_private = userPrompt.get('private', False)
+   responseText = generate_answerMC(answer, 'Zeus', is_private)
    return jsonify({'answer': responseText,
                    'char': 'zeus'
                    })
@@ -188,7 +194,8 @@ def zeus():
 def ade():
    userPrompt = request.get_json()
    answer = userPrompt.get('question', 'No question')
-   responseText = generate_answerMC(answer, 'Ade')
+   is_private = userPrompt.get('private', False)
+   responseText = generate_answerMC(answer, 'Ade', is_private)
    return jsonify({'answer': responseText,
                    'char': 'ade'
                    })

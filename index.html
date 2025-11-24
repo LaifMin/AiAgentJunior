@@ -148,6 +148,9 @@
         <input type="text" name="message" id="chatMessage" placeholder="Scrivi il tuo quesito...">
         <button type="submit" id="sendBt">Invia</button>
         <button type="button" id="changeBt" onclick="swapCharacter()">Change</button>
+        <label style="color:white; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="privateChat"> Whisper
+        </label>
     </form>
 
     <script>
@@ -187,7 +190,7 @@
 
             const messages = characterChats[currentChar];
             messages.forEach(msg => {
-                showMessagesUP(msg.content, msg.char);
+                addMessage(msg.content, msg.char, msg.private);
             });
 
             scrollToBottom();
@@ -261,6 +264,7 @@
             const swapBtn = document.getElementById("changeBt");
             const respondsDiv = document.getElementById("answers");
             const message = input.value.trim();
+            const isPrivate = document.getElementById("privateChat").checked;
 
             if(message === ""){
                 return;
@@ -274,12 +278,13 @@
             sendBtn.textContent = 'Loading...';
             // show loading spinner 
 
-            showMessages(message, false); // Show user message
+            addMessage(message, 'User', isPrivate); // Show user message
+            characterChats[currentChar].push({ char: 'User', content: message, private: isPrivate });
 
             try {
                 const response = await fetch(`/${currentChar}`, {
                     method: "POST",
-                    body: JSON.stringify({ question: message }),
+                    body: JSON.stringify({ question: message, private: isPrivate }),
                     headers: {
                         "Accept": "application/json",
                         "Content-Type": "application/json"
@@ -288,8 +293,8 @@
                 
                 const data = await response.json();
                 const answer = data.answer;
-                characterChats[currentChar].push({ char: currentChar, content: answer });
-                showMessages(answer, currentChar);
+                characterChats[currentChar].push({ char: currentChar, content: answer, private: isPrivate });
+                addMessage(answer, currentChar, isPrivate);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -306,27 +311,15 @@
 
 
 
-        function showMessages(message, isAI){
+        function addMessage(message, who, isPrivate=false){
             const respondsDiv = document.getElementById("answers");
             const msgElement = document.createElement('p');
-            if (isAI){
-                msgElement.textContent = `AI: ${message}`;
+            const prefix = isPrivate ? "[privato] " : "";
+            if (who && who !== 'User' && who !== false){
+                msgElement.textContent = `${prefix}${who}: ${message}`;
                 msgElement.style.textAlign = 'left';
             }else{
-                msgElement.textContent = `${message} : User`;
-                msgElement.style.textAlign = 'right';
-            }
-            respondsDiv.appendChild(msgElement);
-        }
-
-        function showMessagesUP(message, who){
-            const respondsDiv = document.getElementById("answers");
-            const msgElement = document.createElement('p');
-            if (who != 'User'){
-                msgElement.textContent = `${who}: ${message}`;
-                msgElement.style.textAlign = 'left';
-            }else{
-                msgElement.textContent = `${message} : User`;
+                msgElement.textContent = `${prefix}${message} : User`;
                 msgElement.style.textAlign = 'right';
             }
             respondsDiv.appendChild(msgElement);
